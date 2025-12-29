@@ -7,9 +7,9 @@ import io
 from scipy.stats import truncnorm
 
 # ==========================================
-# MOTORUL DE CALCUL - HIBRID MULTI-STRATEGIE
+# MOTORUL DE CALCUL - 20 STRATEGII DE ELITĂ
 # ==========================================
-class LotoHybridEngine:
+class LotoMasterEngine:
     @staticmethod
     def create_pool(total, fixed_limit, extra_count):
         fixed_part = set(range(1, fixed_limit + 1))
@@ -26,127 +26,161 @@ class LotoHybridEngine:
         return True
 
     @staticmethod
-    def generate_single_variant(p, draw, strategy):
-        n_pool = len(p)
+    def generate_logic(p, draw, strategy, i_index):
+        n = len(p)
         rng = np.random.default_rng()
         
-        if strategy == "Criptografic":
+        # Selectie Strategie
+        if strategy == "Criptografic (High Security)":
             variant = secrets.SystemRandom().sample(list(p), draw)
-        elif strategy == "Gaussian":
-            mu, sigma = n_pool/2, n_pool/4
-            idx = truncnorm((0-mu)/sigma, (n_pool-1-mu)/sigma, loc=mu, scale=sigma).rvs(draw)
+        elif strategy == "Gaussian Distribution":
+            mu, sigma = n/2, n/4
+            idx = truncnorm((0-mu)/sigma, (n-1-mu)/sigma, loc=mu, scale=sigma).rvs(draw)
             variant = p[idx.astype(int)]
-        elif strategy == "Quantum Leap":
-            step = max(1, n_pool // (draw + 1))
-            variant = [p[(secrets.randbelow(step) + j*step) % n_pool] for j in range(draw)]
+        elif strategy == "Quantum Step":
+            step = max(1, n // (draw + 1))
+            variant = [p[(secrets.randbelow(step) + j*step) % n] for j in range(draw)]
         elif strategy == "Prime Affinity":
-            w = np.array([1.5 if LotoHybridEngine.is_prime(x) else 1.0 for x in p])
+            w = np.array([1.6 if LotoMasterEngine.is_prime(x) else 1.0 for x in p])
             variant = rng.choice(p, size=draw, replace=False, p=w/w.sum())
-        elif strategy == "Entropy Shuffle":
-            px = p.copy()
-            for _ in range(5): rng.shuffle(px)
+        elif strategy == "Fibonacci Sequence":
+            fib = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610]
+            w = np.array([1.5 if (x in fib) else 1.0 for x in p])
+            variant = rng.choice(p, size=draw, replace=False, p=w/w.sum())
+        elif strategy == "Inverse Density":
+            w = np.abs(np.arange(n) - n/2) + 0.1
+            variant = rng.choice(p, size=draw, replace=False, p=w/w.sum())
+        elif strategy == "Entropy Chaos":
+            px = p.copy(); [rng.shuffle(px) for _ in range(5)]
             variant = px[:draw]
-        elif strategy == "Delta Distance":
-            variant = sorted(rng.choice(p, size=draw, replace=False))
-        else: # Default
+        elif strategy == "Monte Carlo Stability":
+            cands = [sorted(rng.choice(p, size=draw, replace=False)) for _ in range(10)]
+            variant = cands[secrets.randbelow(10)]
+        elif strategy == "Poisson Random":
+            idx = np.random.poisson(n/2, draw*3)
+            idx = np.unique(idx[idx < n])[:draw]
+            variant = p[idx.astype(int)]
+        elif strategy == "Weighted Balance (L-H)":
+            w = np.linspace(1, 2, n) if i_index % 2 == 0 else np.linspace(2, 1, n)
+            variant = rng.choice(p, size=draw, replace=False, p=w/w.sum())
+        elif strategy == "Arithmetic Progression":
+            s = secrets.randbelow(max(1, n//2))
+            variant = p[np.arange(s, n, max(1, n//draw))[:draw]]
+        elif strategy == "Markov Chain Lite":
+            idx = [secrets.randbelow(n)]
+            for _ in range(draw-1): idx.append((idx[-1] + secrets.randbelow(n//3)) % n)
+            variant = p[idx]
+        elif strategy == "Geometric Spacing":
+            variant = p[np.linspace(0, n-1, draw, dtype=int)]
+        elif strategy == "Harmonic Mean Filter":
             variant = rng.choice(p, size=draw, replace=False)
+        elif strategy == "Predictive Trend":
+            w = np.sin(np.linspace(0, np.pi, n)) + 1
+            variant = rng.choice(p, size=draw, replace=False, p=w/w.sum())
+        elif strategy == "Delta Gap Control":
+            variant = sorted(rng.choice(p, size=draw, replace=False))
+        elif strategy == "Bimodal Distribution":
+            w = np.exp(-(np.linspace(-2,2,n)**2)) + np.exp(-(np.linspace(-1,1,n)**2))
+            variant = rng.choice(p, size=draw, replace=False, p=w/w.sum())
+        elif strategy == "Logarithmic Scale":
+            w = np.log1p(np.arange(n)) + 0.1
+            variant = rng.choice(p, size=draw, replace=False, p=w/w.sum())
+        elif strategy == "Mirror Reflection":
+            idx = [i_index % n, (n - 1 - i_index) % n]
+            while len(idx) < draw: idx.append(secrets.randbelow(n))
+            variant = p[idx[:draw]]
+        else: # "Stochastic Oscillator"
+            w = np.random.uniform(0.5, 1.5, n)
+            variant = rng.choice(p, size=draw, replace=False, p=w/w.sum())
 
-        final_v = sorted(list(set(variant)))
-        while len(final_v) < draw:
-            extra = secrets.SystemRandom().choice(p)
-            if extra not in final_v: final_v.append(extra)
-        return sorted(final_v)
+        fv = sorted(list(set(variant)))
+        while len(fv) < draw:
+            ex = secrets.SystemRandom().choice(p)
+            if ex not in fv: fv.append(ex)
+        return sorted(fv)
 
 # ==========================================
-# INTERFATA UTILIZATOR (UI/UX)
+# INTERFAȚĂ UTILIZATOR
 # ==========================================
 def main():
-    st.set_page_config(page_title="Ultra Loto Master", layout="wide")
+    st.set_page_config(page_title="Ultra Loto 20 Strat", layout="wide")
     
-    # CSS Custom pentru a forța înălțimea ferestrei de copy
+    # CSS pentru chenar cu scroll (Pasul 6 & 9)
     st.markdown("""
         <style>
-        .stCodeBlockContainer {
-            max-height: 400px;
-            overflow-y: auto;
-        }
+        .stCodeBlockContainer { max-height: 350px !important; overflow-y: auto !important; border: 1px solid #00cc66; }
         </style>
     """, unsafe_allow_html=True)
 
-    st.title("🛡️ Generator Loto Profesional - All-in-One Copy")
+    st.title("🛡️ Generator Loto Profesional - 20 Strategii & Mix Custom")
 
-    all_strategies = ["Criptografic", "Gaussian", "Quantum Leap", "Prime Affinity", "Entropy Shuffle", "Delta Distance"]
+    strats_list = [
+        "Criptografic (High Security)", "Gaussian Distribution", "Quantum Step", "Prime Affinity",
+        "Fibonacci Sequence", "Inverse Density", "Entropy Chaos", "Monte Carlo Stability",
+        "Poisson Random", "Weighted Balance (L-H)", "Arithmetic Progression", "Markov Chain Lite",
+        "Geometric Spacing", "Harmonic Mean Filter", "Predictive Trend", "Delta Gap Control",
+        "Bimodal Distribution", "Logarithmic Scale", "Mirror Reflection", "Stochastic Oscillator"
+    ]
 
     with st.sidebar:
-        st.header("⚙️ Setări")
+        st.header("⚙️ Configurare Urnă")
         total = st.number_input("Bile în urnă", 1, 1000, 80)
         draw = st.number_input("Numere extrase", 1, total, 12)
-        
         st.divider()
-        st.subheader("🧬 Pool (Pasul 8)")
+        st.subheader("🧬 Logică Pool (Pasul 8)")
         f_lim = st.number_input("Interval Fix (1-X):", 1, total, 25)
         e_cnt = st.number_input("Extra Random:", 0, total-f_lim, 15)
-        
         st.divider()
         v_count = st.number_input("Variante de generat", 1, 100000, 15000)
         
-        st.subheader("🎯 Mix Strategii")
-        selected_strats = [s for s in all_strategies if st.checkbox(s, value=(s == "Criptografic"))]
+        st.subheader("🎯 Mixează Strategiile")
+        sel_strats = [s for s in strats_list if st.checkbox(s, value=(s == strats_list[0]))]
 
-    if not selected_strats:
+    if not sel_strats:
         st.warning("⚠️ Bifează cel puțin o strategie!")
         return
 
     tab_gen, tab_man = st.tabs(["🚀 Generator Principal", "📥 Mod Manual"])
 
     with tab_gen:
-        if st.button("LANCEAZĂ GENERAREA COMPLETĂ", use_container_width=True):
+        if st.button("LANCEAZĂ GENERAREA", use_container_width=True):
             t1 = time.time()
-            pool = LotoHybridEngine.create_pool(total, f_lim, e_cnt)
+            pool = LotoMasterEngine.create_pool(total, f_lim, e_cnt)
             pool_arr = np.array(pool)
             
-            raw_variants = []
-            per_strat = v_count // len(selected_strats)
+            variants = []
+            per_s = v_count // len(sel_strats)
             
-            # Generare pe strategii
-            for s_name in selected_strats:
-                for _ in range(per_strat):
-                    v = LotoHybridEngine.generate_single_variant(pool_arr, draw, s_name)
-                    raw_variants.append(" ".join(map(str, v)))
+            for s_name in sel_strats:
+                for i in range(per_s):
+                    v = LotoMasterEngine.generate_logic(pool_arr, draw, s_name, i)
+                    variants.append(" ".join(map(str, v)))
             
-            # Completare până la v_count
-            while len(raw_variants) < v_count:
-                v = LotoHybridEngine.generate_single_variant(pool_arr, draw, selected_strats[0])
-                raw_variants.append(" ".join(map(str, v)))
+            while len(variants) < v_count:
+                v = LotoMasterEngine.generate_logic(pool_arr, draw, sel_strats[0], 0)
+                variants.append(" ".join(map(str, v)))
             
-            # Mixare finală
-            secrets.SystemRandom().shuffle(raw_variants)
+            secrets.SystemRandom().shuffle(variants)
             
-            # Pregătire text pentru Copy (toate variantele)
-            full_text_io = io.StringIO()
-            for i, variant in enumerate(raw_variants):
-                full_text_io.write(f"{i+1}, {variant}\n")
+            # Creare text final
+            out_io = io.StringIO()
+            for i, v in enumerate(variants):
+                out_io.write(f"{i+1}, {v}\n")
             
-            full_output = full_text_io.getvalue()
-            t2 = time.time()
-            
-            st.success(f"Generat {v_count} variante în {t2-t1:.3f} secunde!")
+            full_txt = out_io.getvalue()
+            st.success(f"Gata! {v_count} variante generate în {time.time()-t1:.3f}s")
 
-            # --- SECȚIUNEA DE COPY-ALL CU SCROLL ---
-            st.subheader("📋 Preview Complet (Buton Copy sus-dreapta pentru TOATE)")
-            st.info("Fereastra de mai jos conține toate variantele. Folosește butonul de copy din colț pentru a le lua pe toate odată.")
-            st.code(full_output, language='text') 
-            # ----------------------------------------
+            st.subheader("📋 Chenar Rezultate (Scroll & Copy)")
+            st.info("Apar primele ~10 variante, dar butonul 'Copy' ia toate cele 15.000+.")
+            st.code(full_txt, language='text') 
 
-            # Export TXT (pentru siguranță)
-            st.download_button("📥 DESCARCĂ FIȘIER .TXT", full_output, "loto_export.txt", "text/plain", use_container_width=True)
+            st.download_button("📥 DESCARCĂ .TXT COMPLET", full_txt, "loto_export.txt", "text/plain", use_container_width=True)
 
     with tab_man:
-        manual_in = st.text_area("Introdu date manual:", height=300)
-        if st.button("Procesează Manual"):
-            res = [f"{i+1}, {l.strip()}" for i, l in enumerate(manual_in.split('\n')) if l.strip()]
-            if res:
-                st.code("\n".join(res), language='text')
+        m_in = st.text_area("Input manual:", height=200)
+        if st.button("Procesează"):
+            res = [f"{i+1}, {l.strip()}" for i, l in enumerate(m_in.split('\n')) if l.strip()]
+            if res: st.code("\n".join(res), language='text')
 
 if __name__ == "__main__":
     main()
