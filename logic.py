@@ -30,7 +30,6 @@ class LotoHybridEngine:
         n_pool = len(p)
         rng = np.random.default_rng()
         
-        # Logica interna pentru fiecare strategie (extrase din pool-ul P)
         if strategy == "Criptografic":
             variant = secrets.SystemRandom().sample(list(p), draw)
         elif strategy == "Gaussian":
@@ -47,41 +46,18 @@ class LotoHybridEngine:
             fib = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377]
             w = np.array([1.8 if (x in fib) else 1.0 for x in p])
             variant = rng.choice(p, size=draw, replace=False, p=w/w.sum())
-        elif strategy == "Inverse Density":
-            w = np.abs(np.arange(n_pool) - n_pool/2) + 0.1
-            variant = rng.choice(p, size=draw, replace=False, p=w/w.sum())
         elif strategy == "Entropy Shuffle":
             px = p.copy()
             for _ in range(5): rng.shuffle(px)
             variant = px[:draw]
-        elif strategy == "Monte Carlo":
-            candidates = [sorted(rng.choice(p, size=draw, replace=False)) for _ in range(5)]
-            variant = candidates[secrets.randbelow(5)]
         elif strategy == "Delta Distance":
-            variant = sorted(rng.choice(p, size=draw, replace=False)) # Spacing automat prin sortare
-        elif strategy == "Poisson":
-            lam = n_pool / 2
-            idx = np.random.poisson(lam, draw*3)
-            idx = np.unique(idx[idx < n_pool])[:draw]
-            variant = p[idx.astype(int)]
-        elif strategy == "Weighted Balance":
-            w = np.linspace(1, 2, n_pool)
+            variant = sorted(rng.choice(p, size=draw, replace=False))
+        elif strategy == "Inverse Density":
+            w = np.abs(np.arange(n_pool) - n_pool/2) + 0.1
             variant = rng.choice(p, size=draw, replace=False, p=w/w.sum())
-        elif strategy == "Harmonic":
+        else: # Default/Standard
             variant = rng.choice(p, size=draw, replace=False)
-        elif strategy == "Geometric":
-            indices = np.linspace(0, n_pool - 1, draw, dtype=int)
-            variant = p[indices]
-        elif strategy == "Arithmetic":
-            start = secrets.randbelow(max(1, n_pool // 2))
-            variant = p[np.arange(start, n_pool, max(1, n_pool//draw))[:draw]]
-        else: # Markov Lite
-            idx = [secrets.randbelow(n_pool)]
-            for _ in range(draw-1):
-                idx.append((idx[-1] + secrets.randbelow(max(1, n_pool//3))) % n_pool)
-            variant = p[idx]
 
-        # Validare unicitate si marime
         final_v = sorted(list(set(variant)))
         while len(final_v) < draw:
             extra = secrets.SystemRandom().choice(p)
@@ -92,85 +68,87 @@ class LotoHybridEngine:
 # INTERFATA UTILIZATOR
 # ==========================================
 def main():
-    st.set_page_config(page_title="Ultra Loto Hybrid", layout="wide")
-    st.title("🛡️ Generator Loto Profesional - Mix de Strategii")
+    st.set_page_config(page_title="Ultra Loto Pro", layout="wide")
+    st.title("🛡️ Generator Loto Profesional - Multi-Strategie")
 
-    # Toate cele 15 strategii
     all_strategies = [
         "Criptografic", "Gaussian", "Quantum Leap", "Prime Affinity", 
-        "Fibonacci", "Inverse Density", "Entropy Shuffle", "Monte Carlo",
-        "Delta Distance", "Poisson", "Weighted Balance", "Harmonic", 
-        "Geometric", "Arithmetic", "Markov Lite"
+        "Fibonacci", "Inverse Density", "Entropy Shuffle", "Delta Distance"
     ]
 
     with st.sidebar:
-        st.header("⚙️ Configurare Sistem")
+        st.header("⚙️ Setări")
         total = st.number_input("Bile în urnă", 1, 1000, 80)
         draw = st.number_input("Numere extrase", 1, total, 12)
         
         st.divider()
-        st.subheader("🧬 Parametri Pool (Pasul 8)")
+        st.subheader("🧬 Pool (Pasul 8)")
         f_lim = st.number_input("Interval Fix (1-X):", 1, total, 25)
         e_cnt = st.number_input("Extra Random:", 0, total-f_lim, 15)
         
         st.divider()
         v_count = st.number_input("Variante de generat", 1, 100000, 15000)
         
-        st.subheader("🎯 Alege Strategiile (MIX)")
-        selected_strats = []
-        for s in all_strategies:
-            if st.checkbox(s, value=(s == "Criptografic")):
-                selected_strats.append(s)
+        st.subheader("🎯 Mix Strategii")
+        selected_strats = [s for s in all_strategies if st.checkbox(s, value=(s == "Criptografic"))]
 
     if not selected_strats:
-        st.warning("⚠️ Te rugăm să bifezi cel puțin o strategie!")
+        st.warning("⚠️ Bifează cel puțin o strategie!")
         return
 
-    tab_gen, tab_man = st.tabs(["🚀 Generator Multi-Strategie", "📥 Manual"])
+    tab_gen, tab_man = st.tabs(["🚀 Generator", "📥 Manual"])
 
     with tab_gen:
-        if st.button("LANCEAZĂ GENERAREA HIBRIDĂ", use_container_width=True):
+        if st.button("LANCEAZĂ GENERAREA", use_container_width=True):
             t1 = time.time()
             pool = LotoHybridEngine.create_pool(total, f_lim, e_cnt)
             pool_arr = np.array(pool)
             
-            final_results = []
-            # Distribuim numarul de variante per strategie
+            raw_variants = []
             per_strat = v_count // len(selected_strats)
             
             for s_name in selected_strats:
                 for _ in range(per_strat):
                     v = LotoHybridEngine.generate_single_variant(pool_arr, draw, s_name)
-                    final_results.append(" ".join(map(str, v)))
+                    raw_variants.append(" ".join(map(str, v)))
             
-            # Umplem restul pana la v_count daca exista rest la impartire
-            while len(final_results) < v_count:
+            while len(raw_variants) < v_count:
                 v = LotoHybridEngine.generate_single_variant(pool_arr, draw, selected_strats[0])
-                final_results.append(" ".join(map(str, v)))
+                raw_variants.append(" ".join(map(str, v)))
             
-            # Shuffle final pentru a mixa strategiile intre ele
-            secrets.SystemRandom().shuffle(final_results)
+            secrets.SystemRandom().shuffle(raw_variants)
             
-            # Formatare Finala DataFrame
+            # Creare DataFrame
             df = pd.DataFrame({
-                "ID": [f"{i+1}," for i in range(len(final_results))],
-                "COMBINATIE": final_results
+                "ID": [f"{i+1}," for i in range(len(raw_variants))],
+                "COMBINATIE": raw_variants
             })
             
             t2 = time.time()
-            st.success(f"Gata! {v_count} variante mixate generate în {t2-t1:.3f} secunde.")
-            st.dataframe(df, height=500, use_container_width=True, hide_index=True)
+            st.success(f"Generat {v_count} variante în {t2-t1:.3f} secunde.")
+
+            # --- NOUA SECTIUNE: PREVIEW COPY-PASTE (Pasul 6) ---
+            st.subheader("📋 Preview Primele 10 Variante (Format Copy-Paste)")
+            preview_text = ""
+            for i in range(min(10, len(df))):
+                preview_text += f"{df.iloc[i]['ID']} {df.iloc[i]['COMBINATIE']}\n"
+            
+            st.text_area("Copiați de aici:", value=preview_text, height=250)
+            # ---------------------------------------------------
+
+            st.subheader("📊 Tabel Complet (Scroll)")
+            st.dataframe(df, height=400, use_container_width=True, hide_index=True)
 
             # Export TXT
             txt = io.StringIO()
             for r in df.itertuples():
                 txt.write(f"{r.ID} {r.COMBINATIE}\n")
             
-            st.download_button("📥 DESCARCĂ .TXT MIXAT", txt.getvalue(), "loto_mix_export.txt", "text/plain", use_container_width=True)
+            st.download_button("📥 DESCARCĂ TOT (.TXT)", txt.getvalue(), "loto_export.txt", "text/plain", use_container_width=True)
 
     with tab_man:
-        manual_in = st.text_area("Input manual (ID, numere):", height=300)
-        if st.button("Procesează Manual"):
+        manual_in = st.text_area("Input manual:", height=300)
+        if st.button("Procesează"):
             res = [{"ID": f"{i+1},", "COMBINATIE": l.strip()} for i, l in enumerate(manual_in.split('\n')) if l.strip()]
             if res:
                 st.dataframe(pd.DataFrame(res), use_container_width=True, hide_index=True)
