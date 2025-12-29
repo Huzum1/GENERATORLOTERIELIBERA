@@ -42,20 +42,13 @@ class LotoHybridEngine:
         elif strategy == "Prime Affinity":
             w = np.array([1.5 if LotoHybridEngine.is_prime(x) else 1.0 for x in p])
             variant = rng.choice(p, size=draw, replace=False, p=w/w.sum())
-        elif strategy == "Fibonacci":
-            fib = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377]
-            w = np.array([1.8 if (x in fib) else 1.0 for x in p])
-            variant = rng.choice(p, size=draw, replace=False, p=w/w.sum())
         elif strategy == "Entropy Shuffle":
             px = p.copy()
             for _ in range(5): rng.shuffle(px)
             variant = px[:draw]
         elif strategy == "Delta Distance":
             variant = sorted(rng.choice(p, size=draw, replace=False))
-        elif strategy == "Inverse Density":
-            w = np.abs(np.arange(n_pool) - n_pool/2) + 0.1
-            variant = rng.choice(p, size=draw, replace=False, p=w/w.sum())
-        else: # Default/Standard
+        else: # Default
             variant = rng.choice(p, size=draw, replace=False)
 
         final_v = sorted(list(set(variant)))
@@ -65,16 +58,24 @@ class LotoHybridEngine:
         return sorted(final_v)
 
 # ==========================================
-# INTERFATA UTILIZATOR
+# INTERFATA UTILIZATOR (UI/UX)
 # ==========================================
 def main():
-    st.set_page_config(page_title="Ultra Loto Pro", layout="wide")
-    st.title("🛡️ Generator Loto Profesional - Multi-Strategie")
+    st.set_page_config(page_title="Ultra Loto Master", layout="wide")
+    
+    # CSS Custom pentru a forța înălțimea ferestrei de copy
+    st.markdown("""
+        <style>
+        .stCodeBlockContainer {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
-    all_strategies = [
-        "Criptografic", "Gaussian", "Quantum Leap", "Prime Affinity", 
-        "Fibonacci", "Inverse Density", "Entropy Shuffle", "Delta Distance"
-    ]
+    st.title("🛡️ Generator Loto Profesional - All-in-One Copy")
+
+    all_strategies = ["Criptografic", "Gaussian", "Quantum Leap", "Prime Affinity", "Entropy Shuffle", "Delta Distance"]
 
     with st.sidebar:
         st.header("⚙️ Setări")
@@ -96,10 +97,10 @@ def main():
         st.warning("⚠️ Bifează cel puțin o strategie!")
         return
 
-    tab_gen, tab_man = st.tabs(["🚀 Generator", "📥 Manual"])
+    tab_gen, tab_man = st.tabs(["🚀 Generator Principal", "📥 Mod Manual"])
 
     with tab_gen:
-        if st.button("LANCEAZĂ GENERAREA", use_container_width=True):
+        if st.button("LANCEAZĂ GENERAREA COMPLETĂ", use_container_width=True):
             t1 = time.time()
             pool = LotoHybridEngine.create_pool(total, f_lim, e_cnt)
             pool_arr = np.array(pool)
@@ -107,51 +108,45 @@ def main():
             raw_variants = []
             per_strat = v_count // len(selected_strats)
             
+            # Generare pe strategii
             for s_name in selected_strats:
                 for _ in range(per_strat):
                     v = LotoHybridEngine.generate_single_variant(pool_arr, draw, s_name)
                     raw_variants.append(" ".join(map(str, v)))
             
+            # Completare până la v_count
             while len(raw_variants) < v_count:
                 v = LotoHybridEngine.generate_single_variant(pool_arr, draw, selected_strats[0])
                 raw_variants.append(" ".join(map(str, v)))
             
+            # Mixare finală
             secrets.SystemRandom().shuffle(raw_variants)
             
-            # Creare DataFrame
-            df = pd.DataFrame({
-                "ID": [f"{i+1}," for i in range(len(raw_variants))],
-                "COMBINATIE": raw_variants
-            })
+            # Pregătire text pentru Copy (toate variantele)
+            full_text_io = io.StringIO()
+            for i, variant in enumerate(raw_variants):
+                full_text_io.write(f"{i+1}, {variant}\n")
             
+            full_output = full_text_io.getvalue()
             t2 = time.time()
-            st.success(f"Generat {v_count} variante în {t2-t1:.3f} secunde.")
-
-            # --- NOUA SECTIUNE: PREVIEW COPY-PASTE (Pasul 6) ---
-            st.subheader("📋 Preview Primele 10 Variante (Format Copy-Paste)")
-            preview_text = ""
-            for i in range(min(10, len(df))):
-                preview_text += f"{df.iloc[i]['ID']} {df.iloc[i]['COMBINATIE']}\n"
             
-            st.text_area("Copiați de aici:", value=preview_text, height=250)
-            # ---------------------------------------------------
+            st.success(f"Generat {v_count} variante în {t2-t1:.3f} secunde!")
 
-            st.subheader("📊 Tabel Complet (Scroll)")
-            st.dataframe(df, height=400, use_container_width=True, hide_index=True)
+            # --- SECȚIUNEA DE COPY-ALL CU SCROLL ---
+            st.subheader("📋 Preview Complet (Buton Copy sus-dreapta pentru TOATE)")
+            st.info("Fereastra de mai jos conține toate variantele. Folosește butonul de copy din colț pentru a le lua pe toate odată.")
+            st.code(full_output, language='text') 
+            # ----------------------------------------
 
-            # Export TXT
-            txt = io.StringIO()
-            for r in df.itertuples():
-                txt.write(f"{r.ID} {r.COMBINATIE}\n")
-            
-            st.download_button("📥 DESCARCĂ TOT (.TXT)", txt.getvalue(), "loto_export.txt", "text/plain", use_container_width=True)
+            # Export TXT (pentru siguranță)
+            st.download_button("📥 DESCARCĂ FIȘIER .TXT", full_output, "loto_export.txt", "text/plain", use_container_width=True)
 
     with tab_man:
-        manual_in = st.text_area("Input manual:", height=300)
-        if st.button("Procesează"):
-            res = [{"ID": f"{i+1},", "COMBINATIE": l.strip()} for i, l in enumerate(manual_in.split('\n')) if l.strip()]
+        manual_in = st.text_area("Introdu date manual:", height=300)
+        if st.button("Procesează Manual"):
+            res = [f"{i+1}, {l.strip()}" for i, l in enumerate(manual_in.split('\n')) if l.strip()]
             if res:
-                st.dataframe(pd.DataFrame(res), use_container_width=True, hide_index=True)
+                st.code("\n".join(res), language='text')
 
 if __name__ == "__main__":
     main()
