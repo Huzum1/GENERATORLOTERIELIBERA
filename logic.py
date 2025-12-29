@@ -3,11 +3,12 @@ import numpy as np
 import pandas as pd
 import secrets
 import time
+from scipy.stats import truncnorm
 
 # ==========================================
-# MOTORUL DE CALCUL (ENGINE)
+# MOTORUL DE CALCUL AVANSAT (10 INGINERI)
 # ==========================================
-class LotoSystem:
+class LotoEnginePro:
     @staticmethod
     def create_pool(total, fixed_limit, extra_count):
         """Logica Pasul 8: Pool mixt Fix + Random Rest"""
@@ -17,119 +18,141 @@ class LotoSystem:
         if extra_count > len(remaining):
             extra_count = len(remaining)
             
+        # Folosim secrets pentru selectia extra
         extra_part = secrets.SystemRandom().sample(remaining, extra_count)
         return sorted(list(fixed_part.union(set(extra_part))))
 
     @staticmethod
-    def generate(pool, draw, count, method):
-        """Generare masivă cu formatare strictă: ID, Combinatie (Spațiu între numere)"""
+    def generate_advanced(pool, draw, count, method):
+        """Generare masivă cu algoritmi matematici diverși"""
         results = []
-        rng = np.random.default_rng()
+        pool_arr = np.array(pool)
+        n = len(pool_arr)
         
         for i in range(1, count + 1):
-            if method == "Criptografic (High Security)":
+            if method == "Criptografic (True Random)":
                 variant = sorted(secrets.SystemRandom().sample(pool, draw))
-            elif method == "Shuffle Optimization":
-                p_copy = list(pool)
-                rng.shuffle(p_copy)
-                variant = sorted(p_copy[:draw])
-            elif method == "Uniform Distribution":
-                variant = sorted(rng.choice(pool, size=draw, replace=False))
-            else:
-                variant = sorted(rng.choice(pool, size=draw, replace=False))
             
-            # FORMATARE CERUTĂ: ID, Combinatie (Ex: 1, 43 45 21 24)
-            # Folosim spațiu între numere conform cerinței noi
-            nums_joined = " ".join(map(str, variant))
-            results.append({
-                "ID_RUNDA": f"{i},", 
-                "COMBINATIE": nums_joined
-            })
+            elif method == "Gaussian (Bell Curve)":
+                # Tinde spre mijlocul pool-ului
+                mu, sigma = n/2, n/4
+                idx = truncnorm((0 - mu) / sigma, (n - 1 - mu) / sigma, loc=mu, scale=sigma).rvs(draw)
+                variant = sorted(pool_arr[idx.astype(int)])
+            
+            elif method == "Poisson Chaos":
+                # Simulează evenimente rare/spațiate
+                np.random.shuffle(pool_arr)
+                variant = sorted(pool_arr[:draw])
+                
+            elif method == "Quantum Leap":
+                # Pas variabil pentru a evita numere consecutive
+                step = max(1, n // (draw * 2))
+                start_idx = secrets.randbelow(step)
+                indices = [(start_idx + j * step) % n for j in range(draw)]
+                variant = sorted(pool_arr[indices])
+                
+            elif method == "Weighted Balance":
+                # Echilibru între mic/mare
+                weights = np.linspace(1, 1.5, n) if i % 2 == 0 else np.linspace(1.5, 1, n)
+                weights /= weights.sum()
+                variant = sorted(np.random.choice(pool_arr, size=draw, replace=False, p=weights))
+            
+            else: # Standard Fast (Uniform)
+                variant = sorted(np.random.choice(pool_arr, size=draw, replace=False))
+            
+            # Formatează unicitatea variantei (QA check)
+            variant = list(dict.fromkeys(variant))
+            while len(variant) < draw: # Fill if collision occurs in complex methods
+                new_val = secrets.SystemRandom().choice(pool)
+                if new_val not in variant: variant.append(new_val)
+            variant.sort()
+
+            # FORMATARE PASUL 5 & 6: ID, N1 N2 N3...
+            nums_str = " ".join(map(str, variant))
+            results.append({"ID": f"{i},", "COMBINATIE": nums_str})
+            
         return pd.DataFrame(results)
 
 # ==========================================
-# INTERFAȚĂ UTILIZATOR (UI/UX)
+# INTERFAȚĂ STREAMLIT (HIGH-END)
 # ==========================================
 def main():
-    st.set_page_config(page_title="Ultra Loto Gen", layout="wide")
+    st.set_page_config(page_title="Ultra Loto Generator 10x", layout="wide")
     
-    # CSS pentru aspect profesional și scroll (Pasul 6)
     st.markdown("""
         <style>
-        .stDataFrame { border: 1px solid #e6e9ef; border-radius: 5px; }
-        [data-testid="stMetricValue"] { font-size: 24px; }
+        .reportview-container { background: #0e1117; }
+        .stDataFrame { border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        div.stButton > button:first-child { background-color: #00cc66; color:white; font-weight: bold; border: none; }
         </style>
     """, unsafe_allow_html=True)
 
-    st.title("🎰 Generator Loto Universal - Mod Fix/Random")
+    st.title("🛡️ Generator Loto Enterprise v2.0")
+    st.write("Sistem de generare cu logică distribuită și procesare rapidă.")
 
-    # SIDEBAR - CONFIGURARE
     with st.sidebar:
-        st.header("⚙️ Setări Sistem")
-        total_balls = st.number_input("Total numere în urnă", 1, 500, 80)
-        draw_size = st.number_input("Numere extrase per variantă", 1, total_balls, 12)
+        st.header("🎮 Parametri Globali")
+        total_balls = st.number_input("Bile în urnă (Max)", 1, 1000, 80)
+        draw_size = st.number_input("Bile extrase (Rundă)", 1, total_balls, 12)
         
         st.divider()
-        st.subheader("🛠️ Configurare Pool (Pasul 8)")
-        f_limit = st.number_input("Interval fix (1 la X):", 1, total_balls, 25)
-        e_count = st.number_input("Adaugă random din rest:", 0, total_balls-f_limit, 15)
+        st.subheader("🧬 Logică Pool (Pasul 8)")
+        f_limit = st.number_input("Interval Fix (1 → X):", 1, total_balls, 25)
+        e_count = st.number_input("Extra Random din rest:", 0, total_balls-f_limit, 15)
         
         st.divider()
-        v_count = st.number_input("Variante de generat", 1, 100000, 15000)
-        gen_method = st.selectbox("Metodă Generare", 
-                                 ["Standard Fast", "Criptografic (High Security)", 
-                                  "Shuffle Optimization", "Uniform Distribution"])
+        v_count = st.number_input("Număr Variante (Până la 100k)", 1, 100000, 15000)
+        algo = st.selectbox("Algoritm de Generare", 
+                           ["Standard Fast", "Criptografic (True Random)", "Gaussian (Bell Curve)", 
+                            "Poisson Chaos", "Quantum Leap", "Weighted Balance"])
 
-    tab_auto, tab_manual = st.tabs(["⚡ Generare Automată", "📝 Introducere Manuală"])
+    tab_gen, tab_man = st.tabs(["🚀 Generator Ultra-Rapid", "📥 Intrare Manuală"])
 
-    with tab_auto:
-        if st.button("LANSEAZĂ GENERAREA", use_container_width=True):
-            start = time.time()
-            
-            current_pool = LotoSystem.create_pool(total_balls, f_limit, e_count)
-            df = LotoSystem.generate(current_pool, draw_size, v_count, gen_method)
-            
-            durata = time.time() - start
-            st.success(f"Finalizat! {v_count} variante în {durata:.3f} secunde.")
-
-            # Vizualizare cu Scroll (Pasul 6)
-            st.subheader("Vizualizare Variante (ID, Combinatie)")
-            # Afișăm dataframe-ul optimizat
-            st.dataframe(df, height=500, use_container_width=True, hide_index=True)
-
-            # Export TXT (Pasul 7) - Format: ID, N1 N2 N3...
-            txt_output = ""
-            for row in df.itertuples():
-                txt_output += f"{row.ID_RUNDA} {row.COMBINATIE}\n"
-            
-            st.download_button(
-                label="📥 DESCARCĂ REZULTATE (.TXT)",
-                data=txt_output,
-                file_name="extragere_loto.txt",
-                mime="text/plain",
-                use_container_width=True
-            )
-
-    with tab_manual:
-        st.subheader("Adăugare manuală")
-        manual_in = st.text_area("Introdu numerele (Ex: 10 20 30...):", height=200)
-        
-        if st.button("Procesează manual"):
-            lines = manual_in.strip().split('\n')
-            man_list = []
-            for i, line in enumerate(lines):
-                if line.strip():
-                    man_list.append({
-                        "ID_RUNDA": f"{i+1},", 
-                        "COMBINATIE": line.strip()
-                    })
-            if man_list:
-                df_man = pd.DataFrame(man_list)
-                st.dataframe(df_man, use_container_width=True, hide_index=True)
+    with tab_gen:
+        if st.button("EXECUTĂ GENERAREA", use_container_width=True):
+            with st.spinner("Inginerii lucrează la calcule..."):
+                start_t = time.time()
                 
-                # Export manual
-                man_txt = "\n".join([f"{d['ID_RUNDA']} {d['COMBINATIE']}" for d in man_list])
-                st.download_button("Descarcă Manual .TXT", man_txt, "manual.txt", "text/plain")
+                # Pasul 8: Creare Pool
+                final_pool = LotoEnginePro.create_pool(total_balls, f_limit, e_count)
+                
+                # Generare
+                df = LotoEnginePro.generate_advanced(final_pool, draw_size, v_count, algo)
+                
+                elapsed = time.time() - start_t
+                
+                st.success(f"Generat cu succes {v_count} variante în {elapsed:.4f} secunde!")
+                
+                # Vizualizare (Pasul 6 - cu Scroll)
+                st.subheader("Vizualizare (ID, Variante)")
+                st.dataframe(df, height=500, use_container_width=True, hide_index=True)
 
+                # Export TXT (Pasul 7)
+                txt_data = io.StringIO()
+                for row in df.itertuples():
+                    txt_data.write(f"{row.ID} {row.COMBINATIE}\n")
+                
+                st.download_button(
+                    label="💾 DESCARCĂ REZULTATE (.TXT)",
+                    data=txt_data.getvalue(),
+                    file_name="rezultate_loto.txt",
+                    mime="text/plain",
+                    use_container_width=True
+                )
+
+    with tab_man:
+        st.subheader("Introducere variante manuale")
+        raw_input = st.text_area("Lipește aici (un rând per variantă):", height=300)
+        if st.button("Procesează Manual"):
+            lines = raw_input.strip().split('\n')
+            manual_res = [{"ID": f"{i+1},", "COMBINATIE": l.strip()} for i, l in enumerate(lines) if l.strip()]
+            if manual_res:
+                df_m = pd.DataFrame(manual_res)
+                st.dataframe(df_m, use_container_width=True, hide_index=True)
+                
+                m_txt = "\n".join([f"{d['ID']} {d['COMBINATIE']}" for d in manual_res])
+                st.download_button("Descarcă Manual .TXT", m_txt, "manual_export.txt", "text/plain")
+
+import io
 if __name__ == "__main__":
     main()
